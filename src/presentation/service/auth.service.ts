@@ -1,22 +1,22 @@
 import { bcryptAdapter } from "../../config";
 import { UserModel } from "../../data";
-import { CustomError, RegisterUserDto, UserEntity } from "../../domain";
+import { CustomError, LoginUserDto, RegisterUserDto, UserEntity } from "../../domain";
 
 export class AuthService {
 
   constructor(){}
 
-  public async registerUser( registerUerDto: RegisterUserDto) {
+  public async registerUser( registerUserDto: RegisterUserDto) {
 
-    const existUser = await UserModel.findOne({ email: registerUerDto.email });
+    const existUser = await UserModel.findOne({ email: registerUserDto.email });
     if (existUser) throw CustomError.badRequest('Email already exist');
 
     try {
       
-      const user = new UserModel(registerUerDto);
+      const user = new UserModel(registerUserDto);
       
       //todo 1 Encriptar la contraseña
-      user.password = bcryptAdapter.hash( registerUerDto.password );
+      user.password = bcryptAdapter.hash( registerUserDto.password );
 
       await user.save();
 
@@ -33,6 +33,24 @@ export class AuthService {
 
     } catch (error) {
       throw CustomError.internalServer(`${error}`);
+    }
+  }
+
+  public async loginUser( loginUserDto: LoginUserDto) {
+
+    // findone para verificar si existe
+    const user = await UserModel.findOne({ email: loginUserDto.email });
+    if (!user) throw CustomError.badRequest(`No user with email: ${loginUserDto.email}`);
+    
+    const isMatching = bcryptAdapter.compare( loginUserDto.password, user.password );
+    if(!isMatching)  throw CustomError.badRequest('Password is not valid');
+    
+    const {password, ...userEntity} = UserEntity.fromObject(user);
+    
+
+    return {
+      user: { ...userEntity },
+      token: 'ABC'
     }
   }
 }
